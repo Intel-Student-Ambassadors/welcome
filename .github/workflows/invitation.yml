@@ -1,0 +1,19 @@
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  automate_invite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invite-on-label
+        uses: vj-abigo/invite-on-label@v1.2
+        with:
+          organization: web3community 
+          label: github-invitation
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          
+          comment: '![welcome](https://community.atlassian.com/t5/image/serverpage/image-id/156613i12F7E0637142D3FE?v=v2)<br><b>Invitation sent to join the GitHub Organization. Welcome to Intel Student Ambassador Community 🎉</b><br><br>Please check your mail to accept the invitation sent by the bot!  👉👈'
+        env:
+          INVITE_TOKEN: ${{ secrets.INVITE_TOKEN }}

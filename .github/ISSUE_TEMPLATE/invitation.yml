@@ -1,17 +1,19 @@
 name: Invite me to the Intel Student Ambassador Community
 description: I would like to be part of the awesome community
+assignees: 
+  - hariketsheth
 title: "Please invite me to the community"
 labels: [github-invitation]
 body:
   - type: input
-    id: name
+    id: 
     attributes:
       label: Name
       placeholder: Insert your name here
     validations:
       required: true
   - type: input
-    id: discordname
+    id: emailname
     attributes:
       label: Email Address
       placeholder: Insert your Email Address here
@@ -24,3 +26,26 @@ body:
       description: Where did you meet Intel Student Ambassador Community? What do you like about this community? Why do you want to join?
     validations:
       required: true
+  - type: dropdown
+    id: interests
+    multiple: true
+    attributes:
+      label: What areas you can contribute / interested to work in?
+      description: You can select multiple options (in case you are interested in multiple domains)
+      multiple: true
+      options:
+        - Web Development
+        - App Development
+        - Designing
+        - Promotion & Marketing
+        - Presentation and Content
+        - Conducting a Session
+        - Management
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/Intel-Student-Ambassadors/welcome/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

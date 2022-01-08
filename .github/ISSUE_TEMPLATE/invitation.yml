@@ -28,7 +28,6 @@ body:
       required: true
   - type: dropdown
     id: interests
-    multiple: true
     attributes:
       label: What areas you can contribute / interested to work in?
       description: You can select multiple options (in case you are interested in multiple domains)

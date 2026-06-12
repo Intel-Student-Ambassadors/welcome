@@ -1,36 +1,26 @@
-name: force-retrigger-labels
+- name: Retrigger labels using PAT
+  run: |
+    repo="${{ github.repository }}"
 
-on:
-  workflow_dispatch:
+    gh issue list --repo $repo --label "github-invitation" --state open --limit 200 \
+    --json number -q '.[].number' | while read num; do
 
-jobs:
-  retrigger:
-    runs-on: ubuntu-latest
+      echo "Re-triggering issue #$num"
 
-    steps:
-      - name: Retrigger labels using PAT
-        run: |
-          repo="${{ github.repository }}"
+      # Remove label
+      gh api \
+        -X DELETE \
+        repos/$repo/issues/$num/labels/github-invitation
 
-          gh issue list --repo $repo --label "github-invitation" --state open --limit 200 \
-          --json number -q '.[].number' | while read num; do
+      sleep 1
 
-            echo "Re-triggering issue #$num"
+      # ✅ FIXED: Add label correctly
+      gh api \
+        -X POST \
+        repos/$repo/issues/$num/labels \
+        -f "labels[]=github-invitation"
 
-            # Remove label
-            gh api \
-              -X DELETE \
-              repos/$repo/issues/$num/labels/github-invitation
-
-            sleep 1
-
-            # Add label back (this WILL trigger workflow)
-            gh api \
-              -X POST \
-              repos/$repo/issues/$num/labels \
-              -f labels='["github-invitation"]'
-
-            sleep 2
-          done
-        env:
-          GH_TOKEN: ${{ secrets.INVITE_TOKEN }}
+      sleep 2
+    done
+  env:
+    GH_TOKEN: ${{ secrets.INVITE_TOKEN }}

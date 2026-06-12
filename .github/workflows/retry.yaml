@@ -1,59 +1,36 @@
-name: backfill-invite-on-label
+name: force-retrigger-labels
 
 on:
   workflow_dispatch:
 
 jobs:
-  process-existing-issues:
+  retrigger:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Process open issues with label
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const labelToCheck = "github-invitation";
+      - name: Retrigger labels using PAT
+        run: |
+          repo="${{ github.repository }}"
 
-            const issues = await github.paginate(
-              github.rest.issues.listForRepo,
-              {
-                owner,
-                repo,
-                state: "open",
-                per_page: 100
-              }
-            );
+          gh issue list --repo $repo --label "github-invitation" --state open --limit 200 \
+          --json number -q '.[].number' | while read num; do
 
-            for (const issue of issues) {
-              const hasLabel = issue.labels.some(l => l.name === labelToCheck);
+            echo "Re-triggering issue #$num"
 
-              if (!hasLabel) continue;
+            # Remove label
+            gh api \
+              -X DELETE \
+              repos/$repo/issues/$num/labels/github-invitation
 
-              console.log(`Processing issue #${issue.number}`);
+            sleep 1
 
-              // Trigger the same effect as your action (re-run invite logic)
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: issue.number,
-                body: `Triggering invite workflow manually for recovery`
-              });
+            # Add label back (this WILL trigger workflow)
+            gh api \
+              -X POST \
+              repos/$repo/issues/$num/labels \
+              -f labels='["github-invitation"]'
 
-              // OPTIONAL: re-emit label event by removing & re-adding
-              await github.rest.issues.removeLabel({
-                owner,
-                repo,
-                issue_number: issue.number,
-                name: labelToCheck
-              });
-
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: issue.number,
-                labels: [labelToCheck]
-              });
-            }
+            sleep 2
+          done
+        env:
+          GH_TOKEN: ${{ secrets.INVITE_TOKEN }}

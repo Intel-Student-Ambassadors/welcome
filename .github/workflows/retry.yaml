@@ -1,11 +1,9 @@
-name: retry
+name: retry-old-failures
+
 on:
-  workflow_run:
-    workflows: ["**"]
-    types:
-      - completed
-    branches:
-      - main
+  schedule:
+    - cron: "0 */6 * * *"  # every 6 hours
+  workflow_dispatch:       # allow manual trigger
 
 defaults:
   run:
@@ -15,19 +13,36 @@ jobs:
   retry:
     runs-on: ubuntu-latest
     permissions:
-      actions: write # Retry actions
-      checks: read   # Get info about the run
-    steps:
-      - name: retry
-        if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt == 1 }}
-        run: |
-              # Get info about the run
-              $output = gh run view --repo "${{ github.event.repository.full_name }}" "${{ github.event.workflow_run.id }}"
-              $output
+      actions: write
+      checks: read
 
-              # Rerun the failed workflow if needed
-              if ($output -match "Process completed with exit code 1") {
-                gh run rerun "${{ github.event.workflow_run.id }}" --repo "${{ github.event.repository.full_name }}"" --failed
-              }
+    steps:
+      - name: Retry failed workflows
+        run: |
+          $repo = "${{ github.repository }}"
+
+          # Get failed runs (limit can be increased)
+          $runs = gh run list `
+            --repo $repo `
+            --status failure `
+            --limit 100 `
+            --json databaseId,createdAt,workflowName `
+            | ConvertFrom-Json
+
+          $now = Get-Date
+
+          foreach ($run in $runs) {
+            $created = Get-Date $run.createdAt
+
+            # Optional: only retry runs older than 1 day
+            if (($now - $created).TotalDays -gt 1) {
+              Write-Host "Retrying run $($run.databaseId) ($($run.workflowName)) created $created"
+
+              gh run rerun $run.databaseId `
+                --repo $repo `
+                --failed
+            }
+          }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+``

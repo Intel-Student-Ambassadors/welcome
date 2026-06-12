@@ -1,47 +1,59 @@
-name: retry-old-failures
+name: backfill-invite-on-label
 
 on:
-  schedule:
-    - cron: "0 */6 * * *"  # every 6 hours
-  workflow_dispatch:       # allow manual trigger
-
-defaults:
-  run:
-    shell: pwsh
+  workflow_dispatch:
 
 jobs:
-  retry:
+  process-existing-issues:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      checks: read
 
     steps:
-      - name: Retry failed workflows
-        run: |
-          $repo = "${{ github.repository }}"
+      - name: Process open issues with label
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const labelToCheck = "github-invitation";
 
-          # Get failed runs (limit can be increased)
-          $runs = gh run list `
-            --repo $repo `
-            --status failure `
-            --limit 100 `
-            --json databaseId,createdAt,workflowName `
-            | ConvertFrom-Json
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              {
+                owner,
+                repo,
+                state: "open",
+                per_page: 100
+              }
+            );
 
-          $now = Get-Date
+            for (const issue of issues) {
+              const hasLabel = issue.labels.some(l => l.name === labelToCheck);
 
-          foreach ($run in $runs) {
-            $created = Get-Date $run.createdAt
+              if (!hasLabel) continue;
 
-            # Optional: only retry runs older than 1 day
-            if (($now - $created).TotalDays -gt 1) {
-              Write-Host "Retrying run $($run.databaseId) ($($run.workflowName)) created $created"
+              console.log(`Processing issue #${issue.number}`);
 
-              gh run rerun $run.databaseId `
-                --repo $repo `
-                --failed
+              // Trigger the same effect as your action (re-run invite logic)
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `Triggering invite workflow manually for recovery`
+              });
+
+              // OPTIONAL: re-emit label event by removing & re-adding
+              await github.rest.issues.removeLabel({
+                owner,
+                repo,
+                issue_number: issue.number,
+                name: labelToCheck
+              });
+
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issue.number,
+                labels: [labelToCheck]
+              });
             }
-          }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,26 +1,40 @@
-- name: Retrigger labels using PAT
-  run: |
-    repo="${{ github.repository }}"
+name: force-retrigger-labels
 
-    gh issue list --repo $repo --label "github-invitation" --state open --limit 200 \
-    --json number -q '.[].number' | while read num; do
+on:
+  workflow_dispatch:
 
-      echo "Re-triggering issue #$num"
+jobs:
+  retrigger:
+    runs-on: ubuntu-latest
 
-      # Remove label
-      gh api \
-        -X DELETE \
-        repos/$repo/issues/$num/labels/github-invitation
+    steps:
+      - name: Retrigger labels using PAT
+        shell: bash
+        run: |
+          repo="${{ github.repository }}"
 
-      sleep 1
+          gh issue list \
+            --repo "$repo" \
+            --label "github-invitation" \
+            --state open \
+            --limit 200 \
+            --json number \
+            -q '.[].number' | while read num; do
 
-      # ✅ FIXED: Add label correctly
-      gh api \
-        -X POST \
-        repos/$repo/issues/$num/labels \
-        -f "labels[]=github-invitation"
+            echo "Re-triggering issue #$num"
 
-      sleep 2
-    done
-  env:
-    GH_TOKEN: ${{ secrets.INVITE_TOKEN }}
+            # Remove label
+            gh api -X DELETE \
+              repos/$repo/issues/$num/labels/github-invitation
+
+            sleep 1
+
+            # ✅ Correct way to pass array
+            gh api -X POST \
+              repos/$repo/issues/$num/labels \
+              -f "labels[]=github-invitation"
+
+            sleep 2
+          done
+        env:
+          GH_TOKEN: ${{ secrets.invite_TOKEN }}
